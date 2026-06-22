@@ -1,0 +1,52 @@
+TP1 Docker — Niveau 1 : Diagnostic
+===================================
+
+
+Problème 1
+----------
+Ligne(s)         : 6, 7, 8
+Problème exact   : Les variables API_KEY, DB_PASSWORD et DB_HOST sont hardcodées dans des instructions ENV.
+Conséquence prod : Ces secrets sont gravés dans les layers de l'image. N'importe qui ayant accès
+                   à l'image peut les lire avec "docker inspect" ou "docker history".
+
+
+Problème 2
+----------
+Ligne(s)         : 12 (COPY . .) placé avant la ligne 15 (RUN npm install)
+Problème exact   : Tout le code source est copié avant l'installation des dépendances.
+                   Le cache Docker est lié au contenu du COPY, donc invalidé à chaque modif de code.
+Conséquence prod : npm install re-télécharge toutes les dépendances à chaque rebuild,
+                   même si package.json n'a pas changé. Builds inutilement lents en CI/CD.
+
+
+Problème 3
+----------
+Ligne(s)         : 15
+Problème exact   : "npm install" sans "--omit=dev" installe aussi les devDependencies (nodemon),
+                   qui ne servent qu'au développement local.
+Conséquence prod : Image plus lourde avec des outils inutiles qui peuvent contenir des vulnérabilités.
+
+
+Problème 4
+----------
+Ligne(s)         : 19 à 25
+Problème exact   : vim, git, htop, net-tools, curl et wget sont installés alors qu'aucun
+                   ne sert à faire tourner l'application.
+Conséquence prod : Image plus lourde (+50MB environ) et surface d'attaque augmentée.
+                   En cas de compromission, l'attaquant dispose d'outils prêts à l'emploi.
+
+
+Problème 5
+----------
+Ligne(s)         : 1
+Problème exact   : L'image de base "node:18" est basée sur Debian et pèse environ 900MB.
+Conséquence prod : Image finale bien au-delà des 200MB, lente à déployer, avec des centaines
+                   de packages Debian inutiles et leurs CVE associées.
+
+
+Problème 6
+----------
+Ligne(s)         : aucune (instruction USER absente)
+Problème exact   : Sans directive USER, le process Node.js tourne en root dans le container.
+Conséquence prod : Si l'application est compromise, l'attaquant obtient les droits root
+                   dans le container, ce qui facilite l'accès aux volumes montés ou à l'hôte.

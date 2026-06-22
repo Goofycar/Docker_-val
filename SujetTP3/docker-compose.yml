@@ -1,0 +1,35 @@
+services:
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    networks:
+      - taskflow-net
+
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      REDIS_HOST: cache
+      REDIS_PORT: 6379
+      PORT: 3001
+    depends_on:
+      - cache
+    restart: on-failure
+    networks:
+      - taskflow-net
+
+  cache:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - taskflow-net
+
+volumes:
+  redis_data:
+
+networks:
+  taskflow-net:

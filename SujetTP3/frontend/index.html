@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>TaskFlow</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; color: #333; }
+    h1 { color: #1a73e8; margin-bottom: 6px; }
+    .subtitle { color: #888; font-size: 0.9em; margin-bottom: 30px; }
+    form { display: flex; gap: 8px; margin-bottom: 30px; }
+    input { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 1em; }
+    button { padding: 10px 20px; background: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; }
+    button:hover { background: #1558b0; }
+    .status { font-size: 0.85em; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 20px; }
+    .status.ok  { background: #e8f5e9; color: #2e7d32; }
+    .status.err { background: #fdecea; color: #c62828; }
+    ul { list-style: none; }
+    li { padding: 12px 16px; border-left: 3px solid #1a73e8; margin-bottom: 10px; background: #f8f9ff; border-radius: 0 6px 6px 0; display: flex; justify-content: space-between; align-items: center; }
+    .task-info { display: flex; flex-direction: column; gap: 2px; }
+    .task-date { color: #999; font-size: 0.8em; }
+    .btn-delete { background: #e53935; padding: 4px 10px; font-size: 0.85em; border-radius: 4px; }
+    .btn-delete:hover { background: #b71c1c; }
+    .vide { color: #aaa; font-style: italic; padding: 20px 0; border: none; background: none; }
+  </style>
+</head>
+<body>
+
+  <h1>TaskFlow</h1>
+  <div class="subtitle">Gestion de tâches · Node.js · Redis</div>
+
+  <div id="status" class="status">Connexion...</div>
+
+  <form id="form">
+    <input id="input" type="text" placeholder="Nouvelle tâche..." autofocus />
+    <button type="submit">Ajouter</button>
+  </form>
+
+  <ul id="liste"><li class="vide">Chargement...</li></ul>
+
+  <script>
+    const API = "http://localhost:3001";
+    const statusEl = document.getElementById("status");
+    const listeEl  = document.getElementById("liste");
+    const form     = document.getElementById("form");
+    const input    = document.getElementById("input");
+
+    function formatDate(iso) {
+      return new Date(iso).toLocaleString("fr-FR");
+    }
+
+    async function charger() {
+      try {
+        const res = await fetch(`${API}/tasks`);
+        if (!res.ok) throw new Error();
+        const tasks = await res.json();
+        statusEl.textContent = "API connectée ✓";
+        statusEl.className = "status ok";
+        if (tasks.length === 0) {
+          listeEl.innerHTML = `<li class="vide">Aucune tâche — ajoute-en une !</li>`;
+          return;
+        }
+        listeEl.innerHTML = tasks.map(t => `
+          <li>
+            <div class="task-info">
+              <span>${t.titre}</span>
+              <span class="task-date">${formatDate(t.createdAt)}</span>
+            </div>
+            <button class="btn-delete" onclick="supprimer('${t.id}')">Supprimer</button>
+          </li>
+        `).join("");
+      } catch {
+        statusEl.textContent = "API non joignable ✗";
+        statusEl.className = "status err";
+        listeEl.innerHTML = `<li class="vide">Impossible de charger les tâches.</li>`;
+      }
+    }
+
+    async function supprimer(id) {
+      await fetch(`${API}/tasks/${id}`, { method: "DELETE" });
+      charger();
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const titre = input.value.trim();
+      if (!titre) return;
+      await fetch(`${API}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titre }),
+      });
+      input.value = "";
+      charger();
+    });
+
+    charger();
+  </script>
+
+</body>
+</html>
